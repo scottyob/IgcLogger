@@ -13,7 +13,8 @@ struct IRecordExtension {
 
 class IgcLogger {
  public:
-  explicit IgcLogger(Stream &ostream) : ostream(ostream) {}
+  explicit IgcLogger(Print &ostream) : ostream(&ostream) {}
+  explicit IgcLogger() : ostream(NULL) {}
 
   void writeHeader();
 
@@ -51,8 +52,8 @@ class IgcLogger {
   // Logs a comment to the file
   void writeLRecord(const String &comment);
 
-  // Writes the H record (security).  Currently not implemented
-  void writeHRecord();
+  // Writes the G record (security).  Currently not implemented
+  void writeGRecord();
 
   // For the H records.
   char date[7] = "";
@@ -65,8 +66,12 @@ class IgcLogger {
   String pressure_type;
   String time_zone;  // (optional)
 
+  void setOutput(Print& target) {
+    ostream = &target;
+  }
+
  private:
-  Stream &ostream;
+  Print* ostream;
 
   // For use in the A record
   char manufacturer_id[4] = "XSI";

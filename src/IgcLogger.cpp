@@ -1,4 +1,5 @@
 #include "IgcLogger.h"
+
 #include <stdexcept>
 
 void IgcLogger::setManufacturerId(const char *manufacturer_id) {
@@ -18,7 +19,7 @@ void IgcLogger::setLoggerId(const char *logger_id) {
 }
 
 void IgcLogger::writeHeader() {
-  ostream.println("A" + String(manufacturer_id) + logger_id + id_extension);
+  ostream->println("A" + String(manufacturer_id) + logger_id + id_extension);
 
   // Write the HFDTE (date) record.
   for (int i = 0; i < 6; i++) {
@@ -26,57 +27,57 @@ void IgcLogger::writeHeader() {
       throw std::runtime_error("Date must be in the format of DDMMYY");
     }
   }
-  ostream.print("HFDTEDATE:");
-  ostream.println(date);
+  ostream->print("HFDTEDATE:");
+  ostream->println(date);
 
   // Write the HFPLT (pilot) record.
   if (!pilot.length()) {
     throw std::runtime_error("Pilot name must be set");
   }
-  ostream.println("HFPLTPILOTINCHARGE:" + pilot);
+  ostream->println("HFPLTPILOTINCHARGE:" + pilot);
 
   // Write the HFGTYGLIDERTYPE record.
   if (!glider_type.length()) {
     throw std::runtime_error("Glider type must be set");
   }
-  ostream.println("HFGTYGLIDERTYPE:" + glider_type);
+  ostream->println("HFGTYGLIDERTYPE:" + glider_type);
 
   // Write the HFDTMGPSDATUM record
-  ostream.println("HFDTMGPSDATUM:WGS84");
+  ostream->println("HFDTMGPSDATUM:WGS84");
 
   // Write the HFRFWFIRMWAREVERSION record
   if (!firmware_version.length()) {
     throw std::runtime_error("Firmware version must be set");
   }
-  ostream.println("HFRFWFIRMWAREVERSION:" + firmware_version);
+  ostream->println("HFRFWFIRMWAREVERSION:" + firmware_version);
 
   // Write the HFRHWHARDWAREVERSION record
   if (!hardware_version.length()) {
     throw std::runtime_error("Hardware version must be set");
   }
-  ostream.println("HFRHWHARDWAREVERSION:" + hardware_version);
+  ostream->println("HFRHWHARDWAREVERSION:" + hardware_version);
 
   // Write the HFFTYFRTYPE record (logger free text manufacturer and model)
   if (!logger_type.length()) {
     throw std::runtime_error("Logger type must be set");
   }
-  ostream.println("HFFTYFRTYPE:" + logger_type);
+  ostream->println("HFFTYFRTYPE:" + logger_type);
 
   // Write the HFGPSTYPE record (GPS type)
   if (!gps_type.length()) {
     throw std::runtime_error("GPS type must be set");
   }
-  ostream.println("HFGPSTYPE:" + gps_type);
+  ostream->println("HFGPSTYPE:" + gps_type);
 
   // Write the HFPRSPRESSALTSENSOR record
   if (!pressure_type.length()) {
     throw std::runtime_error("Pressure sensor type must be set");
   }
-  ostream.println("HFPRSPRESSALTSENSOR:" + pressure_type);
+  ostream->println("HFPRSPRESSALTSENSOR:" + pressure_type);
 
   // Write the HFTZNTIMEZONE (Timezone), if set.
   if (time_zone.length()) {
-    ostream.println("HFTZNTIMEZONE:" + time_zone);
+    ostream->println("HFTZNTIMEZONE:" + time_zone);
   }
 }
 
@@ -144,11 +145,11 @@ void IgcLogger::writeBRecord(String time, String latitude, String longitude, boo
   b_record += gps_altitude_str;
 
   // Print the B record
-  ostream.println(b_record + extension);
+  ostream->println(b_record + extension);
 }
 
 void IgcLogger::writeLRecord(const String &comment) {
-  ostream.println("L" + (String)manufacturer_id + comment);
+  ostream->println("L" + (String)manufacturer_id + comment);
 }
 
 void IgcLogger::writeIRecord(uint8_t num_extensions, const IRecordExtension *extensions) {
@@ -175,7 +176,7 @@ void IgcLogger::writeIRecord(uint8_t num_extensions, const IRecordExtension *ext
     i_record += extensions[i].code;
     currentOffset = end_byte + 1;
   }
-  ostream.println(i_record);
+  ostream->println(i_record);
 }
 
-void IgcLogger::writeHRecord() { ostream.println("HNotImplemented"); }
+void IgcLogger::writeGRecord() { ostream->println("GNotImplemented"); }
