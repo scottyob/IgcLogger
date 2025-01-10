@@ -27,7 +27,7 @@ void IgcLogger::writeHeader() {
       throw std::runtime_error("Date must be in the format of DDMMYY");
     }
   }
-  ostream->print("HFDTEDATE:");
+  ostream->print("HFDTEDATE");
   ostream->println(date);
 
   // Write the HFPLT (pilot) record.
