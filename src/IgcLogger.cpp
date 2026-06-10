@@ -27,8 +27,13 @@ void IgcLogger::writeHeader() {
       throw std::runtime_error("Date must be in the format of DDMMYY");
     }
   }
-  ostream->print("HFDTEDATE");
+  ostream->print("HFDTE");
   ostream->println(date);
+
+  // Write the HFFXA (fix accuracy) record.
+  char fix_accuracy_str[4];
+  snprintf(fix_accuracy_str, sizeof(fix_accuracy_str), "%03d", fix_accuracy);
+  ostream->println("HFFXA" + String(fix_accuracy_str));
 
   // Write the HFPLT (pilot) record.
   if (!pilot.length()) {
@@ -43,7 +48,7 @@ void IgcLogger::writeHeader() {
   ostream->println("HFGTYGLIDERTYPE:" + glider_type);
 
   // Write the HFDTMGPSDATUM record
-  ostream->println("HFDTMGPSDATUM:WGS84");
+  ostream->println("HFDTM100GPSDATUM:WGS84");
 
   // Write the HFRFWFIRMWAREVERSION record
   if (!firmware_version.length()) {
@@ -164,7 +169,7 @@ void IgcLogger::writeIRecord(uint8_t num_extensions, const IRecordExtension *ext
   for (uint8_t i = 0; i < num_extensions; i++) {
     // Work out the offsets for this extension
     auto start_byte = currentOffset;
-    auto end_byte = currentOffset + extensions[i].size;
+    auto end_byte = currentOffset + extensions[i].size - 1;
 
     char start_byte_str[3];
     char end_byte_str[3];
@@ -179,4 +184,8 @@ void IgcLogger::writeIRecord(uint8_t num_extensions, const IRecordExtension *ext
   ostream->println(i_record);
 }
 
-void IgcLogger::writeGRecord() { ostream->println("GNotImplemented"); }
+void IgcLogger::writeGRecord() {
+  // G-record requires a cryptographic hash computed by the device firmware.
+  // Emitting a malformed placeholder causes parse failures in strict validators,
+  // so we emit nothing until a real implementation is available.
+}

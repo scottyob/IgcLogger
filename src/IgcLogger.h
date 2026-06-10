@@ -57,6 +57,7 @@ class IgcLogger {
 
   // For the H records.
   char date[7] = "";
+  uint16_t fix_accuracy = 35;  // HFFXA: overall fix accuracy in meters
   String pilot;
   String glider_type;
   String firmware_version;
