@@ -3,6 +3,66 @@
 #include <ctype.h>
 #include <stdexcept>
 
+namespace {
+  void validateDigits(const String &value, uint8_t length, const char *field_name) {
+    if (value.length() != length) {
+      throw std::runtime_error((String(field_name) + " has invalid length").c_str());
+    }
+    for (auto digit : value) {
+      if (digit < '0' || digit > '9') {
+        throw std::runtime_error((String(field_name) + " must contain only digits").c_str());
+      }
+    }
+  }
+
+  void validateAlphanumeric(const String &value, uint8_t length, const char *field_name) {
+    if (value.length() != length) {
+      throw std::runtime_error((String(field_name) + " has invalid length").c_str());
+    }
+    for (auto character : value) {
+      if (!isalnum(character)) {
+        throw std::runtime_error((String(field_name) + " must be alphanumeric").c_str());
+      }
+    }
+  }
+
+  void validatePrintableAscii(const String &value, const char *field_name) {
+    for (auto character : value) {
+      if (character < 0x20 || character > 0x7E) {
+        throw std::runtime_error((String(field_name) + " must contain printable ASCII characters").c_str());
+      }
+    }
+  }
+
+  void validateLatitude(const String &latitude) {
+    if (latitude.length() != 8) {
+      throw std::runtime_error("Latitude must be 8 characters long");
+    }
+    if (latitude[7] != 'N' && latitude[7] != 'S') {
+      throw std::runtime_error("Latitude must end in N or S");
+    }
+    for (int i = 0; i < 7; i++) {
+      if (latitude[i] < '0' || latitude[i] > '9') {
+        throw std::runtime_error("Latitude must be in the format DDMMmmmN/S");
+      }
+    }
+  }
+
+  void validateLongitude(const String &longitude) {
+    if (longitude.length() != 9) {
+      throw std::runtime_error("Longitude must be 9 characters long");
+    }
+    if (longitude[8] != 'E' && longitude[8] != 'W') {
+      throw std::runtime_error("Longitude must end in E or W");
+    }
+    for (int i = 0; i < 8; i++) {
+      if (longitude[i] < '0' || longitude[i] > '9') {
+        throw std::runtime_error("Longitude must be in the format DDDMMmmmE/W");
+      }
+    }
+  }
+}  // namespace
+
 void IgcLogger::setManufacturerId(const char *manufacturer_id) {
   if (strlen(manufacturer_id) > 3) {
     // Throw a runtime error
@@ -152,6 +212,42 @@ void IgcLogger::writeBRecord(String time, String latitude, String longitude, boo
 
   // Print the B record
   ostream->println(b_record + extension);
+}
+
+void IgcLogger::writeCDeclarationRecord(String declaration_date, String declaration_time,
+                                        String flight_date, String task_number,
+                                        uint8_t turnpoint_count, const String &description) {
+  validateDigits(declaration_date, 6, "Declaration date");
+  validateDigits(declaration_time, 6, "Declaration time");
+  validateDigits(flight_date, 6, "Flight date");
+  validateAlphanumeric(task_number, 4, "Task number");
+  validatePrintableAscii(description, "Declaration description");
+
+  if (turnpoint_count > 99) {
+    throw std::runtime_error("Turnpoint count must be less than 100");
+  }
+
+  if (description.length() > 51) {
+    throw std::runtime_error("Declaration description must fit within the IGC 76 character line limit");
+  }
+
+  char turnpoint_count_str[3];
+  snprintf(turnpoint_count_str, sizeof(turnpoint_count_str), "%02d", turnpoint_count);
+
+  ostream->println(String("C") + declaration_date + declaration_time + flight_date + task_number +
+                   String(turnpoint_count_str) + description);
+}
+
+void IgcLogger::writeCPointRecord(String latitude, String longitude, const String &description) {
+  validateLatitude(latitude);
+  validateLongitude(longitude);
+  validatePrintableAscii(description, "Point description");
+
+  if (description.length() > 58) {
+    throw std::runtime_error("Point description must fit within the IGC 76 character line limit");
+  }
+
+  ostream->println(String("C") + latitude + longitude + description);
 }
 
 void IgcLogger::writeLRecord(const String &comment) {
