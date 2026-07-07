@@ -37,6 +37,26 @@ class IgcLogger {
   // https://xp-soaring.github.io/igc_file_format/igc_format_2008.html#link_3.4
   void writeIRecord(uint8_t num_extensions, const IRecordExtension *extensions);
 
+  // Logs the first line of a task/declaration (C record).
+  // This should be written after the H, I and J records, and before the first B record.
+  // Arguments:
+  //   @param declaration_date 6 bytes, UTC date in the format DDMMYY
+  //   @param declaration_time 6 bytes, UTC time in the format HHMMSS
+  //   @param flight_date 6 bytes, intended flight date in the format DDMMYY, or 000000
+  //   @param task_number 4 bytes, alphanumeric task number, or 0000
+  //   @param turnpoint_count number of turn points excluding start and finish
+  //   @param description optional text string to append after the turnpoint count
+  void writeCDeclarationRecord(String declaration_date, String declaration_time, String flight_date,
+                               String task_number, uint8_t turnpoint_count,
+                               const String &description = "");
+
+  // Logs a task/declaration point (C record).
+  // Arguments:
+  //   @param latitude 8 bytes, in the format of DDMMmmmN/S
+  //   @param longitude 9 bytes, in the format of DDDMMmmmE/W
+  //   @param description optional point description, such as TAKEOFF, START, TURN, FINISH or LANDING
+  void writeCPointRecord(String latitude, String longitude, const String &description = "");
+
   // @brief Logs a position (B record) with the mandatory fields.
   // Arguments:
   //   @param time 6 bytes, in the format of HHMMSS

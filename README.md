@@ -38,6 +38,27 @@ const IRecordExtension extensions[] = {IRecordExtension(3, "FXA"), IRecordExtens
 logger.writeIRecord(sizeof(extensions) / sizeof(extensions[0]), extensions);
 ```
 
+### Logging tasks
+Tasks can be logged with C records after the header/I records and before the first B record.
+The declaration line is followed by point lines for takeoff, start, turn points, finish and
+landing.  If takeoff or landing are not known, they can be recorded as zero coordinates.
+
+```cpp
+logger.writeCDeclarationRecord("012025", "195815", "000000", "0000", 1, "Training task");
+logger.writeCPointRecord("0000000N", "00000000E");
+logger.writeCPointRecord("3728466N", "12151573W", "START Start Point");
+logger.writeCPointRecord("3729466N", "12152573W", "TURN Turn Point");
+logger.writeCPointRecord("3730466N", "12153573W", "FINISH Finish Point");
+logger.writeCPointRecord("0000000N", "00000000E");
+```
+
+Turn radii and observation-zone details are not part of the standard C record fields.
+Applications can include them with manufacturer L records when needed:
+
+```cpp
+logger.writeLRecord("OZN=0,Style=1,R1=1000.0m,A1=180.0,R2=0.0m,A2=0.0");
+```
+
 ### Logging comments
 Comments can be logged and useful for however you want to display or parse them.
 
@@ -82,6 +103,15 @@ logger.writeHeader();
 const IRecordExtension extensions[] = {IRecordExtension(3, "FXA"), IRecordExtension(2, "SIU")};
 logger.writeIRecord(sizeof(extensions) / sizeof(extensions[0]), extensions);
 
+// Write a task declaration before the first B record
+logger.writeCDeclarationRecord("012025", "195815", "000000", "0000", 1, "Training task");
+logger.writeCPointRecord("0000000N", "00000000E");
+logger.writeCPointRecord("3728466N", "12151573W", "START Start Point");
+logger.writeCPointRecord("3729466N", "12152573W", "TURN Turn Point");
+logger.writeCPointRecord("3730466N", "12153573W", "FINISH Finish Point");
+logger.writeCPointRecord("0000000N", "00000000E");
+logger.writeLRecord("OZN=0,Style=1,R1=1000.0m,A1=180.0,R2=0.0m,A2=0.0");
+
 // Write some B records
 logger.writeBRecord("195816", "3728466N", "12151573W", true, 696, 694, "00504");
 logger.writeBRecord("195817", "3728464N", "12151574W", true, 695, 693, "00504");
@@ -114,6 +144,13 @@ HFGPSTYPE:uBlox 7
 HFPRSPRESSALTSENSOR:MS5611
 HFTZNTIMEZONE:-8
 I023639FXA4042SIU
+C012025195815000000000001Training task
+C0000000N00000000E
+C3728466N12151573WSTART Start Point
+C3729466N12152573WTURN Turn Point
+C3730466N12153573WFINISH Finish Point
+C0000000N00000000E
+LXSIOZN=0,Style=1,R1=1000.0m,A1=180.0,R2=0.0m,A2=0.0
 B1958163728466N12151573WA006960069400504
 B1958173728464N12151574WA006950069300504
 B1958183728462N12151575WA006940069300504
@@ -136,6 +173,7 @@ This library is currently pretty minimal.  Currently, these record types are sup
 ### Supported:
     A - FR manufacturer and identification
     B - Fix
+    C - Task/declaration
     E - Event
     G - Security
     H - File header
@@ -143,7 +181,6 @@ This library is currently pretty minimal.  Currently, these record types are sup
     L - Logbook/comments
 
 ### Unsupported:
-    C - Task/declaration
     D - Differential GPS
     F - Constellation
     J - List of data included in each extension (K) Record

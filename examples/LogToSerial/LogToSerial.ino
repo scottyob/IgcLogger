@@ -23,6 +23,15 @@ void setup() {
   const IRecordExtension extensions[] = {IRecordExtension(3, "FXA"), IRecordExtension(2, "SIU")};
   logger.writeIRecord(sizeof(extensions) / sizeof(extensions[0]), extensions);
 
+  // Write a task declaration before the first B record
+  logger.writeCDeclarationRecord("012025", "195815", "000000", "0000", 1, "Training task");
+  logger.writeCPointRecord("0000000N", "00000000E");
+  logger.writeCPointRecord("3728466N", "12151573W", "START Start Point");
+  logger.writeCPointRecord("3729466N", "12152573W", "TURN Turn Point");
+  logger.writeCPointRecord("3730466N", "12153573W", "FINISH Finish Point");
+  logger.writeCPointRecord("0000000N", "00000000E");
+  logger.writeLRecord("OZN=0,Style=1,R1=1000.0m,A1=180.0,R2=0.0m,A2=0.0");
+
   // Write some B records
   logger.writeBRecord("195816", "3728466N", "12151573W", true, 696, 694, "00504");
   logger.writeBRecord("195817", "3728464N", "12151574W", true, 695, 693, "00504");
