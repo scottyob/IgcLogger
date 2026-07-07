@@ -51,6 +51,16 @@ To do such a comment as this, you simply need to:
 logger.writeLRecord("::PHASE:onGround");
 ```
 
+### Logging events
+Events can be logged with a 3-character event code and optional text.  Pilot-initiated
+events use the `PEV` code, and should be followed by a B record with the same timestamp
+to show where the event occurred.
+
+```cpp
+logger.writeERecord("195819", "PEV", "SAVE POINT");
+logger.writeBRecord("195819", "3728460N", "12151576W", true, 693, 692, "00504");
+```
+
 ### Full Example
 ```cpp
 IgcLogger logger(Serial);
@@ -76,6 +86,7 @@ logger.writeIRecord(sizeof(extensions) / sizeof(extensions[0]), extensions);
 logger.writeBRecord("195816", "3728466N", "12151573W", true, 696, 694, "00504");
 logger.writeBRecord("195817", "3728464N", "12151574W", true, 695, 693, "00504");
 logger.writeBRecord("195818", "3728462N", "12151575W", true, 694, 693, "00504");
+logger.writeERecord("195819", "PEV", "SAVE POINT");
 logger.writeBRecord("195819", "3728460N", "12151576W", true, 693, 692, "00504");
 logger.writeBRecord("195820", "3728459N", "12151576W", true, 693, 692, "00504");
 logger.writeBRecord("195821", "3728457N", "12151577W", true, 692, 691, "00504");
@@ -106,6 +117,7 @@ I023639FXA4042SIU
 B1958163728466N12151573WA006960069400504
 B1958173728464N12151574WA006950069300504
 B1958183728462N12151575WA006940069300504
+E195819PEVSAVE POINT
 B1958193728460N12151576WA006930069200504
 B1958203728459N12151576WA006930069200504
 B1958213728457N12151577WA006920069100504
@@ -124,6 +136,7 @@ This library is currently pretty minimal.  Currently, these record types are sup
 ### Supported:
     A - FR manufacturer and identification
     B - Fix
+    E - Event
     G - Security
     H - File header
     I - List of extension data included at end of each fix B record
@@ -132,7 +145,6 @@ This library is currently pretty minimal.  Currently, these record types are sup
 ### Unsupported:
     C - Task/declaration
     D - Differential GPS
-    E - Event
     F - Constellation
     J - List of data included in each extension (K) Record
     K - Extension data

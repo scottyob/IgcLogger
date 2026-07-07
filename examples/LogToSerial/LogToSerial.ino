@@ -27,6 +27,7 @@ void setup() {
   logger.writeBRecord("195816", "3728466N", "12151573W", true, 696, 694, "00504");
   logger.writeBRecord("195817", "3728464N", "12151574W", true, 695, 693, "00504");
   logger.writeBRecord("195818", "3728462N", "12151575W", true, 694, 693, "00504");
+  logger.writeERecord("195819", "PEV", "SAVE POINT");
   logger.writeBRecord("195819", "3728460N", "12151576W", true, 693, 692, "00504");
   logger.writeBRecord("195820", "3728459N", "12151576W", true, 693, 692, "00504");
   logger.writeBRecord("195821", "3728457N", "12151577W", true, 692, 691, "00504");
@@ -37,7 +38,7 @@ void setup() {
   logger.writeBRecord("195826", "3728448N", "12151579W", true, 692, 690, "00504");
   logger.writeBRecord("195827", "3728446N", "12151579W", true, 691, 690, "00504");
 
-  logger.writeHRecord();
+  logger.writeGRecord();
 }
 
 void loop() {}

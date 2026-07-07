@@ -1,5 +1,6 @@
 #include "IgcLogger.h"
 
+#include <ctype.h>
 #include <stdexcept>
 
 void IgcLogger::setManufacturerId(const char *manufacturer_id) {
@@ -155,6 +156,38 @@ void IgcLogger::writeBRecord(String time, String latitude, String longitude, boo
 
 void IgcLogger::writeLRecord(const String &comment) {
   ostream->println("L" + (String)manufacturer_id + comment);
+}
+
+void IgcLogger::writeERecord(String time, const char *code, const String &text) {
+  // Check the time is 6 bytes, and in the format of HHMMSS
+  if (time.length() != 6) {
+    throw std::runtime_error("Time must be 6 characters long");
+  }
+  for (auto digit : time) {
+    if (digit < '0' || digit > '9') {
+      throw std::runtime_error("Time must be in the format HHMMSS");
+    }
+  }
+
+  if (code == NULL || strlen(code) != 3) {
+    throw std::runtime_error("Event code must be 3 characters long");
+  }
+  for (int i = 0; i < 3; i++) {
+    if (!isalnum(code[i])) {
+      throw std::runtime_error("Event code must be alphanumeric");
+    }
+  }
+
+  if (text.length() > 66) {
+    throw std::runtime_error("Event text must fit within the IGC 76 character line limit");
+  }
+  for (auto character : text) {
+    if (character < 0x20 || character > 0x7E) {
+      throw std::runtime_error("Event text must contain printable ASCII characters");
+    }
+  }
+
+  ostream->println(String("E") + time + String(code) + text);
 }
 
 void IgcLogger::writeIRecord(uint8_t num_extensions, const IRecordExtension *extensions) {
