@@ -49,6 +49,13 @@ class IgcLogger {
   void writeBRecord(String time, String latitude, String longitude, bool gps_fix,
                     int pressure_altitude, int gps_altitude, String extension);
 
+  // Logs an event (E record) with a three-letter code and optional text.
+  // Arguments:
+  //   @param time 6 bytes, in the format of HHMMSS
+  //   @param code 3 bytes, three-letter code from the IGC spec, such as PEV
+  //   @param text optional text string to append after the code
+  void writeERecord(String time, const char *code, const String &text = "");
+
   // Logs a comment to the file
   void writeLRecord(const String &comment);
 
