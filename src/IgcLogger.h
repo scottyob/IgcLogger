@@ -1,5 +1,52 @@
 #include <Arduino.h>
 
+// ---------------------------------------------------------------------------
+// IGC security (G record) support
+//
+// FAI Sporting Code Section 7H (CIVL Flight Recorder Specification), para
+// 3.1.4.3, allows HG/PG flight recorders to use "an industry-standard message
+// authentication system like HMAC" instead of the asymmetric per-instrument
+// keys required of IGC-approved sailplane recorders, and recommends
+// "a minimum of HMAC-SHA256 ... using a 256-bit key".
+//
+// The signing key MUST NOT be published.  See vali.fai-civl.org FAQ,
+// "What happen if my key to encrypt is public available as Open Source":
+// GPL/CDDL do not require publishing keys; obfuscate/inject them at build time.
+//
+// Define IGC_SIGNING_KEY at build time (e.g. platformio.ini build_flags:
+//   -DIGC_SIGNING_KEY='"<32+ random bytes as a C string>"'
+// ) or call IgcLogger::setSigningKey() before writeHeader().  If neither is
+// done the library signs with a well-known placeholder and isSigned() is false.
+// ---------------------------------------------------------------------------
+#ifndef IGC_SIGNING_KEY
+#define IGC_SIGNING_KEY "PLACEHOLDER-UNSIGNED-KEY-REPLACE-AT-BUILD-TIME"
+#define IGC_SIGNING_KEY_IS_PLACEHOLDER 1
+#endif
+
+// Minimal, dependency-free SHA-256 so the library stays portable across
+// Arduino cores (no mbedTLS / BearSSL requirement) and is unit-testable on a
+// host compiler.
+struct IgcSha256 {
+  uint32_t state[8];
+  uint64_t bit_length;
+  uint8_t buffer[64];
+  uint8_t buffer_length;
+
+  void begin();
+  void update(const uint8_t *data, size_t length);
+  void finish(uint8_t digest[32]);
+};
+
+// Incremental HMAC-SHA256 (RFC 2104).
+struct IgcHmacSha256 {
+  IgcSha256 inner;
+  uint8_t opad[64];
+
+  void begin(const uint8_t *key, size_t key_length);
+  void update(const uint8_t *data, size_t length);
+  void finish(uint8_t mac[32]);
+};
+
 struct IRecordExtension {
   uint8_t size;
 
@@ -22,6 +69,11 @@ class IgcLogger {
   // See https://xp-soaring.github.io/igc_file_format/igc_format_2008.html#link_2.5.6
   // This should be a 3 character string starting with 'X', unless you have a device tested with
   // GFAC.
+  //
+  // IMPORTANT: the code must be one that CIVL has allocated to *you*
+  // (http://vali.fai-civl.org/supported.html).  Re-using another project's
+  // code makes online contests run that project's vali-XXX.exe against your
+  // files, which will always report FAILED.
   void setManufacturerId(const char *manufacturer_id);
 
   // Sets the logger ID.  This is used in the A record to identify a different
@@ -31,6 +83,14 @@ class IgcLogger {
   // Sets the ID extension for the A record.  This can be used to identify
   // anything about either the logger, or the specific flight
   void setIdExtension(const String &id_extension) { this->id_extension = id_extension; }
+
+  // Sets the secret key used to sign the file (G record).  Must be called
+  // before writeHeader().  A 256-bit (32 byte) or longer key is recommended.
+  void setSigningKey(const uint8_t *key, size_t key_length);
+
+  // True if a key other than the compiled-in placeholder is in use, i.e. the
+  // G record this file will carry is actually meaningful.
+  bool isSigned() const { return signing_key_is_real; }
 
   // Logs an of I record defining extra attributes.  These are used to store additional information
   // These should at least contain an FXA attribute, which is the Fix Accuracy.
@@ -79,23 +139,31 @@ class IgcLogger {
   // Logs a comment to the file
   void writeLRecord(const String &comment);
 
-  // Writes the G record (security).  Currently not implemented
+  // Writes the G record (security): the HMAC-SHA256 of every record written so
+  // far, as uppercase hex.  Must be the last thing written to the file.
   void writeGRecord();
 
   // For the H records.
   char date[7] = "";
   uint16_t fix_accuracy = 35;  // HFFXA: overall fix accuracy in meters
   String pilot;
+  String crew2 = "NIL";      // HFCM2: second crew member, or NIL
   String glider_type;
+  String glider_id = "NKN";  // HFGID: glider registration, or NKN
   String firmware_version;
   String hardware_version;
   String logger_type;
   String gps_type;
   String pressure_type;
+  // Altitude datum declarations required of non-IGC (CIVL) flight recorders,
+  // FAI SC7H para 3.2.3.  GNSS altitude above the WGS84 geoid is "GEO"
+  // (what NMEA GGA reports); above the ellipsoid is "ELL".
+  String gnss_altitude_datum = "GEO";      // HFALG: GEO | ELL | NKM | NIL
+  String pressure_altitude_datum = "ISA";  // HFALP: ISA | MSL | NKM | NIL
   String time_zone;  // (optional)
 
   void setOutput(Print& target) {
-    ostream = &target;
+        ostream = &target;
   }
 
  private:
@@ -105,4 +173,22 @@ class IgcLogger {
   char manufacturer_id[4] = "XSI";
   char logger_id[4] = "Igc";
   String id_extension = "LoggerLib";
+
+  // Security state.  Every record emitted is fed into the HMAC as its bytes
+  // followed by a single '\n', so the signature is unaffected by CRLF/LF
+  // translation while the file is copied around or uploaded.
+  IgcHmacSha256 hmac;
+  bool hmac_started = false;
+  bool signing_key_is_real =
+#ifdef IGC_SIGNING_KEY_IS_PLACEHOLDER
+      false;
+#else
+      true;
+#endif
+  uint8_t signing_key[64];
+  size_t signing_key_length = 0;
+
+  void startSecurity();
+  // Writes one record to the output and adds it to the running signature.
+  void emitRecord(const String &record);
 };
