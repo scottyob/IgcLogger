@@ -80,7 +80,10 @@ void IgcLogger::setLoggerId(const char *logger_id) {
 }
 
 void IgcLogger::writeHeader() {
-  ostream->println("A" + String(manufacturer_id) + logger_id + id_extension);
+  // A header starts a new log, so discard any digest state from the previous log.
+  md5_.Reset();
+
+  writeLine("A" + String(manufacturer_id) + logger_id + id_extension);
 
   // Write the HFDTE (date) record.
   for (int i = 0; i < 6; i++) {
@@ -88,62 +91,61 @@ void IgcLogger::writeHeader() {
       throw std::runtime_error("Date must be in the format of DDMMYY");
     }
   }
-  ostream->print("HFDTE");
-  ostream->println(date);
+  writeLine("HFDTE" + String(date));
 
   // Write the HFFXA (fix accuracy) record.
   char fix_accuracy_str[4];
   snprintf(fix_accuracy_str, sizeof(fix_accuracy_str), "%03d", fix_accuracy);
-  ostream->println("HFFXA" + String(fix_accuracy_str));
+  writeLine("HFFXA" + String(fix_accuracy_str));
 
   // Write the HFPLT (pilot) record.
   if (!pilot.length()) {
     throw std::runtime_error("Pilot name must be set");
   }
-  ostream->println("HFPLTPILOTINCHARGE:" + pilot);
+  writeLine("HFPLTPILOTINCHARGE:" + pilot);
 
   // Write the HFGTYGLIDERTYPE record.
   if (!glider_type.length()) {
     throw std::runtime_error("Glider type must be set");
   }
-  ostream->println("HFGTYGLIDERTYPE:" + glider_type);
+  writeLine("HFGTYGLIDERTYPE:" + glider_type);
 
   // Write the HFDTMGPSDATUM record
-  ostream->println("HFDTM100GPSDATUM:WGS84");
+  writeLine("HFDTM100GPSDATUM:WGS84");
 
   // Write the HFRFWFIRMWAREVERSION record
   if (!firmware_version.length()) {
     throw std::runtime_error("Firmware version must be set");
   }
-  ostream->println("HFRFWFIRMWAREVERSION:" + firmware_version);
+  writeLine("HFRFWFIRMWAREVERSION:" + firmware_version);
 
   // Write the HFRHWHARDWAREVERSION record
   if (!hardware_version.length()) {
     throw std::runtime_error("Hardware version must be set");
   }
-  ostream->println("HFRHWHARDWAREVERSION:" + hardware_version);
+  writeLine("HFRHWHARDWAREVERSION:" + hardware_version);
 
   // Write the HFFTYFRTYPE record (logger free text manufacturer and model)
   if (!logger_type.length()) {
     throw std::runtime_error("Logger type must be set");
   }
-  ostream->println("HFFTYFRTYPE:" + logger_type);
+  writeLine("HFFTYFRTYPE:" + logger_type);
 
   // Write the HFGPSTYPE record (GPS type)
   if (!gps_type.length()) {
     throw std::runtime_error("GPS type must be set");
   }
-  ostream->println("HFGPSTYPE:" + gps_type);
+  writeLine("HFGPSTYPE:" + gps_type);
 
   // Write the HFPRSPRESSALTSENSOR record
   if (!pressure_type.length()) {
     throw std::runtime_error("Pressure sensor type must be set");
   }
-  ostream->println("HFPRSPRESSALTSENSOR:" + pressure_type);
+  writeLine("HFPRSPRESSALTSENSOR:" + pressure_type);
 
   // Write the HFTZNTIMEZONE (Timezone), if set.
   if (time_zone.length()) {
-    ostream->println("HFTZNTIMEZONE:" + time_zone);
+    writeLine("HFTZNTIMEZONE:" + time_zone);
   }
 }
 
@@ -211,7 +213,7 @@ void IgcLogger::writeBRecord(String time, String latitude, String longitude, boo
   b_record += gps_altitude_str;
 
   // Print the B record
-  ostream->println(b_record + extension);
+  writeLine(b_record + extension);
 }
 
 void IgcLogger::writeCDeclarationRecord(String declaration_date, String declaration_time,
@@ -234,8 +236,8 @@ void IgcLogger::writeCDeclarationRecord(String declaration_date, String declarat
   char turnpoint_count_str[3];
   snprintf(turnpoint_count_str, sizeof(turnpoint_count_str), "%02d", turnpoint_count);
 
-  ostream->println(String("C") + declaration_date + declaration_time + flight_date + task_number +
-                   String(turnpoint_count_str) + description);
+  writeLine(String("C") + declaration_date + declaration_time + flight_date + task_number +
+            String(turnpoint_count_str) + description);
 }
 
 void IgcLogger::writeCPointRecord(String latitude, String longitude, const String &description) {
@@ -247,11 +249,11 @@ void IgcLogger::writeCPointRecord(String latitude, String longitude, const Strin
     throw std::runtime_error("Point description must fit within the IGC 76 character line limit");
   }
 
-  ostream->println(String("C") + latitude + longitude + description);
+  writeLine(String("C") + latitude + longitude + description);
 }
 
 void IgcLogger::writeLRecord(const String &comment) {
-  ostream->println("L" + (String)manufacturer_id + comment);
+  writeLine("L" + (String)manufacturer_id + comment);
 }
 
 void IgcLogger::writeERecord(String time, const char *code, const String &text) {
@@ -283,7 +285,7 @@ void IgcLogger::writeERecord(String time, const char *code, const String &text) 
     }
   }
 
-  ostream->println(String("E") + time + String(code) + text);
+  writeLine(String("E") + time + String(code) + text);
 }
 
 void IgcLogger::writeIRecord(uint8_t num_extensions, const IRecordExtension *extensions) {
@@ -310,11 +312,28 @@ void IgcLogger::writeIRecord(uint8_t num_extensions, const IRecordExtension *ext
     i_record += extensions[i].code;
     currentOffset = end_byte + 1;
   }
-  ostream->println(i_record);
+  writeLine(i_record);
+}
+
+void IgcLogger::writeLine(const String &line) {
+  ostream->println(line);
+
+  // Digest framing is independent of Print's line ending: validators strip each record's line
+  // terminator, then hash the record content followed by exactly one '\n'.
+  md5_.Update(line.c_str(), line.length());
+  md5_.Update("\n", 1);
 }
 
 void IgcLogger::writeGRecord() {
-  // G-record requires a cryptographic hash computed by the device firmware.
-  // Emitting a malformed placeholder causes parse failures in strict validators,
-  // so we emit nothing until a real implementation is available.
+  uint8_t raw[MD5::HASH_SIZE];
+  md5_.Finalize(raw);
+
+  char hex[MD5::DIGEST_SIZE + 1];
+  MD5::Digest(raw, hex);
+  for (size_t i = 0; i < MD5::DIGEST_SIZE; ++i) {
+    hex[i] = (char)toupper((unsigned char)hex[i]);
+  }
+
+  // The G record is not part of its own checksum. This is intended to be called once at log end.
+  ostream->println("G" + String(hex));
 }

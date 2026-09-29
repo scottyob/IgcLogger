@@ -1,5 +1,7 @@
 #include <Arduino.h>
 
+#include <MD5.h>
+
 struct IRecordExtension {
   uint8_t size;
 
@@ -79,7 +81,9 @@ class IgcLogger {
   // Logs a comment to the file
   void writeLRecord(const String &comment);
 
-  // Writes the G record (security).  Currently not implemented
+  // Writes a single G record containing an uppercase MD5 checksum of all records written since
+  // writeHeader(). This is tamper-evident, not fraud-proof, and is intended to be called once at
+  // the end of the log.
   void writeGRecord();
 
   // For the H records.
@@ -99,7 +103,10 @@ class IgcLogger {
   }
 
  private:
+  void writeLine(const String &line);
+
   Print* ostream;
+  MD5 md5_;
 
   // For use in the A record
   char manufacturer_id[4] = "XSI";

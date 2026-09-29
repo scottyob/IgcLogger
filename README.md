@@ -7,6 +7,34 @@ For more information on the igc file format, some good resources are:
 * [Aerofiles igc writer](https://github.com/Turbo87/aerofiles/blob/master/aerofiles/igc/writer.py)
 * Igc file spec from [xp-soaring](https://xp-soaring.github.io/igc_file_format/igc_format_2008.html#link_3)
 
+## Installation
+
+### PlatformIO
+
+Add IgcLogger to your project's `lib_deps`. PlatformIO installs the required
+[akkoyun/MD5](https://github.com/akkoyun/MD5) dependency automatically:
+
+```ini
+[env:your_board]
+framework = arduino
+lib_deps =
+    https://github.com/scottyob/IgcLogger.git
+```
+
+### Arduino IDE
+
+The MD5 dependency is not available from the Arduino Library Manager, so install it manually before
+installing IgcLogger:
+
+1. Download the MD5 library using GitHub's
+   [Download ZIP](https://github.com/akkoyun/MD5/archive/refs/heads/main.zip) link.
+2. In the Arduino IDE, select **Sketch > Include Library > Add .ZIP Library...** and choose the
+   downloaded MD5 ZIP.
+3. Install IgcLogger from the Library Manager, or install its ZIP in the same way.
+
+The MD5 dependency is only used to produce the G-record checksum. This checksum is tamper-evident,
+not fraud-proof; it does not authenticate the log.
+
 ## Library Usage.
 
 ### Setup Headers.
@@ -164,7 +192,7 @@ B1958243728452N12151580WA006920069100504
 B1958253728450N12151580WA006920069000504
 B1958263728448N12151579WA006920069000504
 B1958273728446N12151579WA006910069000504
-GNotImplemented
+G1842745117D81DBC61E7A6B32FC39975
 ```
 
 ## Record Types:
@@ -185,4 +213,3 @@ This library is currently pretty minimal.  Currently, these record types are sup
     F - Constellation
     J - List of data included in each extension (K) Record
     K - Extension data
-
